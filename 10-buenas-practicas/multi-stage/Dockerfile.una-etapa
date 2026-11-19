@@ -1,0 +1,10 @@
+# ❌ UNA SOLA ETAPA: la imagen final lleva el compilador de Go, sus librerías,
+#    el código fuente, cachés... Todo eso SOLO hacía falta para compilar.
+FROM golang:1.23
+
+WORKDIR /src
+COPY . .
+RUN go build -o /hola .
+
+EXPOSE 8080
+CMD ["/hola"]

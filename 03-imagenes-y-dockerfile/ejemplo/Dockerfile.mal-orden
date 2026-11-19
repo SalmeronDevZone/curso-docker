@@ -1,0 +1,12 @@
+# ❌ MAL ORDEN: copiamos TODO el código antes de instalar dependencias.
+# Cualquier cambio en app.py (aunque sea un espacio) invalida la caché de la
+# capa COPY, y por tanto TODAS las siguientes: pip install se repite siempre.
+FROM python:3.12-slim
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
+
+COPY . .
+RUN pip install --no-cache-dir -r requirements.txt
+
+EXPOSE 5000
+CMD ["python", "app.py"]

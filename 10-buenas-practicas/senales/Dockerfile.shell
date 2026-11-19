@@ -1,0 +1,7 @@
+# Forma SHELL (sin corchetes): Docker ejecuta  /bin/sh -c "echo ... ; python ..."
+# -> el PID 1 es "sh", NO python. sh no reenvía SIGTERM a sus hijos,
+#    así que python nunca se entera de que tiene que parar.
+FROM python:3.12-slim
+WORKDIR /app
+COPY app.py .
+CMD echo "Arrancando la app..." ; python -u app.py

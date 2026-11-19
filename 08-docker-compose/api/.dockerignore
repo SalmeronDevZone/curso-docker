@@ -1,0 +1,8 @@
+# Lo que NO se envía a Docker al construir la imagen (el "contexto de build")
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+Dockerfile
+.dockerignore

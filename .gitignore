@@ -1,0 +1,21 @@
+# Secretos: NUNCA se suben al repositorio (usa los .env.example como plantilla)
+.env
+
+# Dependencias y cachés
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Copias de seguridad generadas en los ejercicios
+*.tgz
+*.tar
+*.sql.gz
+backups/
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

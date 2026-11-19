@@ -1,0 +1,124 @@
+# =============================================================================
+#  PROYECTO FINAL — 4 servicios (+1 opcional), 2 redes, 1 volumen
+#
+#   navegador ──:8080──▶ [proxy] ──/──────▶ [web] ──▶ [api] ──▶ [db] ── volumen datos-db
+#                           └─────/api/──────────────▶ [api]
+#
+#   red "frontend":            proxy, web, api
+#   red "backend" (internal):  api, db     -> proxy y web NO pueden llegar a la BD
+#
+#  Arrancar:          cp .env.example .env && docker compose up -d --build
+#  Con Adminer:       docker compose --profile debug up -d
+# =============================================================================
+name: notas-final
+
+# Bloque reutilizable (YAML "anchor"). Los campos x-... los ignora Compose.
+# Rotación de logs: como máximo 3 ficheros de 10 MB por contenedor.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+
+  # ---------------------------------------------------------------------------
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80"                # ÚNICO puerto publicado de todo el proyecto
+    volumes:
+      # Bind mount de SOLO LECTURA (:ro) con nuestra configuración
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [frontend]
+    depends_on:
+      web: { condition: service_healthy }
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/salud"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits: { cpus: "0.50", memory: 64M }
+    logging: *logging
+
+  # ---------------------------------------------------------------------------
+  web:
+    build: ./web
+    image: notas-web:prod
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:5000
+    networks: [frontend]          # NO está en "backend": no puede ver la BD
+    depends_on:
+      api: { condition: service_healthy }
+    read_only: true               # sistema de ficheros de solo lectura
+    deploy:
+      resources:
+        limits: { cpus: "0.50", memory: 128M }
+    logging: *logging
+    # (el healthcheck viene del HEALTHCHECK de su Dockerfile)
+
+  # ---------------------------------------------------------------------------
+  api:
+    build: ./api
+    image: notas-api:prod-2.0
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    networks: [frontend, backend] # el "puente" entre las dos redes
+    depends_on:
+      db: { condition: service_healthy }
+    read_only: true
+    tmpfs:
+      - /tmp                      # directorio escribible en memoria
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 256M }
+    logging: *logging
+
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Falta POSTGRES_USER. Copia .env.example a .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD. Copia .env.example a .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Falta POSTGRES_DB. Copia .env.example a .env}
+    volumes:
+      - datos-db:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 256M }
+    logging: *logging
+
+  # ---------------------------------------------------------------------------
+  # OPCIONAL: interfaz web para ver la BD. Solo arranca con --profile debug
+  adminer:
+    image: adminer:4.8.1
+    profiles: [debug]
+    ports:
+      - "127.0.0.1:8081:8080"     # solo accesible desde la propia máquina
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    networks: [frontend, backend] # backend para ver la BD; frontend para poder publicar el puerto
+    depends_on:
+      db: { condition: service_healthy }
+
+networks:
+  frontend: {}
+  backend:
+    internal: true                # red SIN salida a internet ni al exterior
+
+volumes:
+  datos-db: {}

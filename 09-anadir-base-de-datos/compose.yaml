@@ -1,0 +1,67 @@
+# =============================================================================
+#  Módulo 09: añadimos un TERCER contenedor -> base de datos PostgreSQL.
+#
+#     navegador ──8080──▶ [ web ] ──http://api:5000──▶ [ api ] ──db:5432──▶ [ db ]
+#                                                                           │
+#                                                                   volumen datos-db
+#
+#  Antes de arrancar:   cp .env.example .env      (y cambia la contraseña)
+#  Arrancar:            docker compose up -d --build
+# =============================================================================
+name: notas-09
+
+services:
+
+  # --- Servicio 3 (NUEVO): base de datos -------------------------------------
+  db:
+    # Imagen oficial, versión fijada. No hace falta Dockerfile: no la modificamos.
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      # La imagen de postgres lee estas variables LA PRIMERA VEZ que arranca
+      # (con el volumen vacío) para crear el usuario y la base de datos.
+      # Los valores vienen del fichero .env  ( ${VAR:?mensaje} = obligatoria )
+      POSTGRES_USER: ${POSTGRES_USER:?Falta POSTGRES_USER. Copia .env.example a .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD. Copia .env.example a .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Falta POSTGRES_DB. Copia .env.example a .env}
+    volumes:
+      # Volumen con nombre -> los datos sobreviven a "docker compose down"
+      - datos-db:/var/lib/postgresql/data
+    healthcheck:
+      # Docker ejecuta este comando cada 5 s DENTRO del contenedor.
+      # pg_isready dice si Postgres ya acepta conexiones.
+      # ($$ = un "$" literal: que lo expanda el contenedor, no Compose)
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    # Sin "ports": la BD NO es accesible desde fuera, solo desde la API.
+
+  # --- Servicio 1: la API (ahora con BD) -------------------------------------
+  api:
+    build: ./api
+    image: notas-api:2.0
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        # No basta con que el contenedor "db" exista: esperamos a que su
+        # healthcheck diga que está SANO (Postgres tarda unos segundos).
+        condition: service_healthy
+
+  # --- Servicio 2: la WEB (sin cambios respecto al módulo 08) ----------------
+  web:
+    build: ./web
+    image: notas-web:1.0
+    restart: unless-stopped
+    ports:
+      - "8080:3000"
+    environment:
+      API_URL: http://api:5000
+    depends_on:
+      - api
+
+volumes:
+  datos-db:   # Docker lo crea como "notas-09_datos-db"

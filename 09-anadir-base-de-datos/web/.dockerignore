@@ -1,0 +1,8 @@
+# Lo que NO se envía a Docker al construir la imagen (el "contexto de build")
+# node_modules se instala DENTRO de la imagen con "npm ci": nunca lo copies
+# desde tu máquina (puede ser de otro sistema operativo y pesa mucho).
+node_modules/
+npm-debug.log*
+.env
+Dockerfile
+.dockerignore

@@ -1,0 +1,18 @@
+# Forzamos finales de línea LF (estilo Linux) en todo el repositorio.
+# Motivo: este repo se escribe en Windows pero se usa en Ubuntu y dentro de
+# contenedores Linux. Un script .sh con finales CRLF (Windows) falla con:
+#   /bin/bash^M: bad interpreter   o   exec format error
+* text=auto eol=lf
+
+*.sh         text eol=lf
+Dockerfile*  text eol=lf
+*.yaml       text eol=lf
+*.yml        text eol=lf
+*.conf       text eol=lf
+*.py         text eol=lf
+*.js         text eol=lf
+*.go         text eol=lf
+
+*.png binary
+*.jpg binary
+*.tgz binary

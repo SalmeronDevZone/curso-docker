@@ -1,0 +1,37 @@
+# =============================================================================
+#  Docker Compose: describimos en UN fichero lo que en el módulo 07 hicimos con
+#  varios comandos (crear red, construir 2 imágenes, arrancar 2 contenedores).
+#
+#  Uso:   docker compose up -d --build     (construir y arrancar)
+#         docker compose ps                (ver estado)
+#         docker compose logs -f           (ver logs de todos)
+#         docker compose down              (parar y borrar contenedores + red)
+# =============================================================================
+
+# Nombre del proyecto: prefijo de contenedores, redes y volúmenes (notas-08-api-1...)
+name: notas-08
+
+services:
+
+  # --- Servicio 1: la API (Python) -------------------------------------------
+  api:
+    build: ./api               # construye con ./api/Dockerfile
+    image: notas-api:1.0       # nombre:etiqueta que tendrá la imagen construida
+    restart: unless-stopped    # si se cae, Docker la vuelve a arrancar
+    # Sin "ports": la API NO se publica fuera. Solo la ven los otros servicios
+    # del proyecto, a través de la red interna, con el nombre "api".
+
+  # --- Servicio 2: la WEB (Node) ---------------------------------------------
+  web:
+    build: ./web
+    image: notas-web:1.0
+    ports:
+      - "8080:3000"            # puerto_de_tu_máquina:puerto_del_contenedor
+    environment:
+      API_URL: http://api:5000 # "api" = nombre del servicio de arriba (DNS interno)
+    depends_on:
+      - api                    # arranca "api" antes que "web"
+    restart: unless-stopped
+
+# No declaramos "networks": Compose crea automáticamente una red llamada
+# "notas-08_default" y mete en ella a todos los servicios.

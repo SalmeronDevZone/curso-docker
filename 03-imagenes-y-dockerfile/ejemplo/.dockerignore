@@ -1,0 +1,9 @@
+# Ficheros que NO se envían a Docker al hacer "docker build".
+# Igual que .gitignore, pero para el contexto de construcción.
+__pycache__/
+*.pyc
+.venv/
+.env
+.git/
+Dockerfile*
+.dockerignore
